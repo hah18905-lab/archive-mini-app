@@ -1,0 +1,76 @@
+name: Deploy Archive Mini App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Unpack static Mini App from ZIP
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import shutil
+          import zipfile
+
+          package = pathlib.Path("ARHIV_8_6_GITHUB_PAGES_READY.zip")
+          if not package.is_file():
+              raise SystemExit("Upload ARHIV_8_6_GITHUB_PAGES_READY.zip via Add file -> Upload files first.")
+          target = pathlib.Path("public")
+          target.mkdir(exist_ok=True)
+          base = target.resolve()
+          with zipfile.ZipFile(package) as bundle:
+              for entry in bundle.infolist():
+                  if entry.is_dir():
+                      continue
+                  path = pathlib.PurePosixPath(entry.filename)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise ValueError("Unsafe archive entry: " + entry.filename)
+                  # Publish only a static website; never deploy private backend files.
+                  if path.suffix.lower() not in {".html", ".js", ".css", ".json", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".mp4", ".webm"} and path.name != ".nojekyll":
+                      continue
+                  destination = target.joinpath(*path.parts)
+                  if not destination.resolve().is_relative_to(base):
+                      raise ValueError("Unsafe output path")
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  with bundle.open(entry) as src, destination.open("wb") as dst:
+                      shutil.copyfileobj(src, dst)
+          for required in ("index.html", "data/stories.json", "media/story_01.jpg"):
+              if not (target / required).is_file():
+                  raise SystemExit("Required site file missing: " + required)
+          (target / ".nojekyll").touch()
+          print("Mini App files extracted successfully")
+          PY
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy site
+        id: deployment
+        uses: actions/deploy-pages@v4
