@@ -29,3 +29,35 @@ body.tinder-tracking,body.tinder-tracking *{user-select:none!important;-webkit-u
 @keyframes emberTrail{0%{opacity:0;transform:translate(0,0) scale(.5)}18%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.1)}}
 @media(prefers-reduced-motion:reduce){#tinderStage .tinder-ember,#tinderStage .tinder-burn{animation:none!important}#tinderStage .tinder-card{transition:none!important}#tinderDock{backdrop-filter:none}}
 @media(max-width:355px){#tinderDock{gap:5px}#tinderDock button{font-size:11px}#tinderDock .dock-meta{font-size:9px}}
+
+/* ARHIV 8.8: full-screen TikTok-like story replacement */
+#tinderStage{transition:opacity .2s ease;isolation:isolate}
+#tinderStage.transitioning{pointer-events:auto}
+#tinderStage.dissolve{opacity:0}
+#tinderStage .tinder-card{z-index:3}
+#tinderStage .tinder-hint{z-index:5;background:#0b1312bd;border:1px solid #627a644f;border-radius:99px;padding:8px 14px;width:max-content;max-width:95%;box-shadow:0 3px 28px #000b}
+#tinderStage .tinder-next-screen{position:absolute;inset:0;z-index:2;overflow:hidden;background:#090d0e;transform:translate3d(0,105%,0) scale(.97);opacity:.75;pointer-events:none;will-change:transform,opacity,filter;box-shadow:0 -30px 80px #000b}
+#tinderStage.transitioning .tinder-next-screen{animation:archive-slide-up .81s cubic-bezier(.15,.82,.2,1) both}
+#tinderStage .tinder-next-screen .story{margin:0 auto;width:min(100%,690px);min-height:100dvh;overflow:hidden}
+#tinderStage .tinder-next-screen .tinder-recommend-banner{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:50%;transform:translateX(-50%);z-index:4;max-width:92%;padding:10px 13px;border-radius:8px;border:1px solid #759a84a6;background:#0a1711ee;color:#ccf0d2;text-align:center;letter-spacing:.06em;font:700 10px/1.5 ui-monospace,Consolas,monospace;box-shadow:0 7px 40px #000c;animation:archive-banner .8s ease both}
+#tinderStage .tinder-next-screen:after{content:'';position:absolute;z-index:3;left:0;right:0;top:-15%;height:36%;background:linear-gradient(to bottom,transparent,#6cae8c2b,transparent);pointer-events:none;opacity:0}
+#tinderStage.transitioning .tinder-next-screen:after{animation:archive-scanner .85s ease-out both}
+#tinderStage .tinder-end-screen{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 28px;background:radial-gradient(circle,#22382d,#07100c 70%);color:#e6eddb}
+#tinderStage .tinder-end-symbol{font-size:80px;line-height:1;color:#afd8b6;text-shadow:0 0 50px #7dc58d}
+#tinderStage .tinder-end-kicker{font:700 11px/1.5 monospace;letter-spacing:.2em;color:#9bc4a3;margin-top:30px}
+#tinderStage .tinder-end-screen h2{font:36px/1.2 Georgia,serif;margin:16px 0}
+#tinderStage .tinder-end-screen p{font:15px/1.8 Georgia,serif;max-width:310px;color:#bbcebc}
+@keyframes archive-slide-up{
+  0%{transform:translate3d(0,105%,0) scale(.97);opacity:.75;filter:blur(4px) brightness(.6)}
+  45%{opacity:1;filter:blur(0) brightness(.86)}
+  80%{transform:translate3d(0,-1.5%,0) scale(1);opacity:1;filter:brightness(1)}
+  100%{transform:translate3d(0,0,0) scale(1);opacity:1;filter:brightness(1)}
+}
+@keyframes archive-banner{0%,15%{opacity:0;transform:translate(-50%,-10px)}40%,80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+@keyframes archive-scanner{0%{transform:translateY(-20vh);opacity:0}30%{opacity:.7}75%{opacity:.6}100%{transform:translateY(105vh);opacity:0}}
+@media(prefers-reduced-motion:reduce){
+  #tinderStage.transitioning .tinder-next-screen{animation:none;transform:none;opacity:1;filter:none}
+  #tinderStage.transitioning .tinder-next-screen:after,
+  #tinderStage .tinder-recommend-banner{animation:none!important}
+  #tinderStage.dissolve{transition:none}
+}
