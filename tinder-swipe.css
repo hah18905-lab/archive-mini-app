@@ -61,3 +61,16 @@ body.tinder-tracking,body.tinder-tracking *{user-select:none!important;-webkit-u
   #tinderStage .tinder-recommend-banner{animation:none!important}
   #tinderStage.dissolve{transition:none}
 }
+
+/* ARHIV 8.9: animated full-screen replacement for every story */
+#tinderStage .tinder-next-screen .tinder-next-hero{position:relative;height:100dvh;min-height:100%;background:linear-gradient(180deg,#142019,#060a0a);display:flex;flex-direction:column;overflow:hidden}
+#tinderStage .tinder-next-hero>img{width:100%;height:64%;flex:1;min-height:0;object-fit:cover;filter:brightness(.76) saturate(.75);mask-image:linear-gradient(180deg,#000 65%,transparent)}
+#tinderStage .tinder-next-copy{position:relative;z-index:2;margin-top:-17%;padding:30px max(22px,calc((100vw - 560px)/2));padding-bottom:calc(env(safe-area-inset-bottom) + 90px);background:linear-gradient(0deg,#07110fee 55%,transparent);color:#e8f4ec}
+#tinderStage .tinder-next-kicker{font:700 11px/1.5 ui-monospace,Consolas,monospace;color:#bad6bf;letter-spacing:.15em}
+#tinderStage .tinder-next-copy h2{font:500 clamp(30px,9vw,52px)/1.1 Georgia,serif;margin:12px 0 14px;text-shadow:0 2px 14px #000a}
+#tinderStage .tinder-next-copy p{font:16px/1.7 Georgia,serif;color:#bacfc0;max-width:650px}
+#stream{touch-action:pan-y}
+#tinderDock{z-index:19}
+#tinderStage{z-index:18}
+#tinderStage.transitioning{pointer-events:none}
+@media(prefers-reduced-motion:reduce){#tinderStage .tinder-next-screen{transform:none;opacity:1}}
