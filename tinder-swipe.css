@@ -74,3 +74,32 @@ body.tinder-tracking,body.tinder-tracking *{user-select:none!important;-webkit-u
 #tinderStage{z-index:18}
 #tinderStage.transitioning{pointer-events:none}
 @media(prefers-reduced-motion:reduce){#tinderStage .tinder-next-screen{transform:none;opacity:1}}
+
+
+/* ARHIV 9.0 — tactile swipe tuning, mobile anti-selection, cinematic easing */
+#stream{touch-action:pan-y;overscroll-behavior-x:contain}
+#stream .story img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
+body.tinder-armed #stream .story,body.tinder-tracking #stream .story{
+  -webkit-user-select:none!important;user-select:none!important;
+  -webkit-touch-callout:none!important;
+}
+@media(pointer:coarse){
+  #stream .story,#stream .story *:not(button):not(a){
+    -webkit-user-select:none!important;user-select:none!important;
+    -webkit-touch-callout:none!important;
+  }
+  #stream .story button,#stream .story a{touch-action:manipulation}
+}
+#tinderStage{--swipe-progress:0}
+#tinderStage.dragging{background:radial-gradient(ellipse at center,#13211fba,#020505d5 78%)}
+#tinderStage.dragging .tinder-card{transform-origin:50% 80%;backface-visibility:hidden}
+#tinderStage.dragging .tinder-photo img{filter:brightness(.92) saturate(.83)}
+#tinderStage .tinder-card{backface-visibility:hidden;transform-origin:50% 78%;contain:paint}
+#tinderStage .tinder-photo img{user-select:none;-webkit-user-select:none;-webkit-user-drag:none;pointer-events:none}
+#tinderStage.dragging .tinder-stamp{transition:opacity .09s linear}
+#tinderStage.dragging .tinder-hint{opacity:.7}
+#tinderDock{border:1px solid #647e70aa;box-shadow:0 15px 48px #000b,0 0 26px #315f3a2b}
+#tinderDock button{transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease}
+#tinderDock button:active{transform:scale(.94)}
+#tinderLike:active{box-shadow:0 0 20px #3aa77955}
+#tinderDislike:active{box-shadow:0 0 20px #df6b6b55}
