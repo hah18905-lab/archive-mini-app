@@ -46,7 +46,7 @@ function resetStage(){
   stage.className='';incoming.replaceChildren();
   stage.style.opacity='';card.style.transform='';card.style.opacity='';
   card.style.filter='';card.style.transition='none';
-  document.body.classList.remove('tinder-tracking');
+  document.body.classList.remove('tinder-tracking','tinder-armed');
   stage.querySelectorAll('.tinder-ember').forEach(e=>e.remove());
 }
 function startStage(article,index,total){
@@ -156,7 +156,7 @@ function finish(article,v){
       resetStage();busy=false;return;
     }
     sparks(dir);
-    card.style.transition='transform .57s cubic-bezier(.16,.8,.2,1),opacity .57s ease';
+    card.style.transition='transform .69s cubic-bezier(.19,.94,.2,1),opacity .61s ease';
     card.style.transform='translate3d('+(dir*(innerWidth+450))+'px,-40px,0) rotate('+(dir*22)+'deg)';
     card.style.opacity='0';
     timer=setTimeout(()=>{
@@ -166,8 +166,8 @@ function finish(article,v){
       timer=setTimeout(()=>{
         resetStage();busy=false;
         if(!next)document.getElementById('menu')?.classList.add('show');
-      },190);
-    },750);
+      },220);
+    },850);
   }catch(error){
     console.error('Swipe error',error);resetStage();busy=false;
   }
@@ -190,52 +190,129 @@ stream.addEventListener('click',e=>{
   e.preventDefault();e.stopImmediatePropagation();
   if(!busy){const all=getArticles();if(startStage(article,all.indexOf(article),all.length))finish(article,index===0?1:-1);}
 },true);
+// ARHIV 9.0: pointer gestures are handled as one smooth, deliberate motion.
+const swipeDebug={accepted:0,cancelled:0,vertical:0};
+const gestureLimit=()=>Math.max(85,Math.min(135,window.innerWidth*.28));
+const actionTargets='button,a,input,textarea,select,video,.overlay,[contenteditable="true"]';
 function shouldIgnore(target){
-  return busy||blocked()||!!target.closest?.('button,a,input,textarea,select,video,.overlay');
+  return busy||blocked()||!!target?.closest?.(actionTargets);
 }
-function down(x,y,kind){dragging={x,y,start:performance.now(),kind,active:false,blocked:false,dx:0};}
-function drag(x,y,e){
-  if(!dragging||dragging.blocked)return;
-  const dx=x-dragging.x,dy=y-dragging.y;
-  if(!dragging.active){
-    if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)*1.1){dragging.blocked=true;return;}
-    if(Math.abs(dx)>15&&Math.abs(dx)>Math.abs(dy)*1.2){
-      const {article,index,all}=current();
-      if(!startStage(article,index,all.length)){dragging.blocked=true;return;}
-      dragging.active=true;dragging.article=article;document.body.classList.add('tinder-tracking');
-    }else return;
+let dragPointer=null;
+let renderedX=0,desiredX=0,animationFrame=0;
+function stopFrame(){
+  if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=0;}
+}
+function renderFrame(){
+  if(!dragPointer||!dragPointer.active){animationFrame=0;return;}
+  const delta=desiredX-renderedX;
+  renderedX+=delta*.44;
+  if(Math.abs(delta)<.35)renderedX=desiredX;
+  const dx=renderedX;
+  const tilt=Math.max(-14,Math.min(14,dx/20));
+  const lift=-Math.min(12,Math.abs(dx)*.055);
+  const scale=1-Math.min(.035,Math.abs(dx)/6000);
+  card.style.transform='translate3d('+dx+'px,'+lift+'px,0) rotate('+tilt+'deg) scale('+scale+')';
+  stampYes.style.opacity=String(Math.max(0,Math.min(1,dx/gestureLimit())));
+  stampNo.style.opacity=String(Math.max(0,Math.min(1,-dx/gestureLimit())));
+  stage.style.setProperty('--swipe-progress',String(Math.min(1,Math.abs(dx)/gestureLimit())));
+  animationFrame=requestAnimationFrame(renderFrame);
+}
+function armPointer(e){
+  if(!e.isPrimary||shouldIgnore(e.target))return;
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  // Leave vertical reading and page controls untouched.
+  const article=e.target.closest?.('article.story')||current().article;
+  if(!article)return;
+  dragPointer={id:e.pointerId,kind:e.pointerType,article,startX:e.clientX,startY:e.clientY,
+     x:e.clientX,y:e.clientY,started:performance.now(),active:false,blocked:false,
+     lastX:e.clientX,lastT:performance.now(),velocityX:0};
+  document.body.classList.add('tinder-armed');
+}
+function updatePointer(e){
+  const g=dragPointer;
+  if(!g||g.id!==e.pointerId||g.blocked)return;
+  const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
+  if(!g.active){
+    if(Math.abs(dy)>11&&Math.abs(dy)>Math.abs(dx)*1.15){
+      g.blocked=true;
+      document.body.classList.remove('tinder-armed');
+      swipeDebug.vertical++;
+      return;
+    }
+    if(Math.abs(dx)<11||Math.abs(dx)<Math.abs(dy)*1.18)return;
+    const all=getArticles();
+    const index=all.indexOf(g.article);
+    if(index<0||!startStage(g.article,index,all.length)){
+      g.blocked=true;
+      document.body.classList.remove('tinder-armed');
+      return;
+    }
+    g.active=true;
+    document.body.classList.add('tinder-tracking');
+    // Capturing the pointer avoids drops when the finger passes over images.
+    try{stream.setPointerCapture(e.pointerId)}catch(_){}
+    renderedX=0;desiredX=0;
+    stage.classList.add('dragging');
+    stopFrame();animationFrame=requestAnimationFrame(renderFrame);
   }
-  dragging.dx=dx;move(dx);if(e?.cancelable)e.preventDefault();
+  const now=performance.now();
+  const elapsed=Math.max(1,now-g.lastT);
+  const instant=(e.clientX-g.lastX)/elapsed;
+  g.velocityX=g.velocityX*.68+instant*.32;
+  g.lastT=now;g.lastX=e.clientX;g.x=e.clientX;g.y=e.clientY;
+  desiredX=dx;
+  if(e.cancelable)e.preventDefault();
 }
-function up(){
-  if(!dragging)return;
-  const g=dragging;dragging=null;
-  document.body.classList.remove('tinder-tracking');
+function releasePointer(e,cancelled=false){
+  const g=dragPointer;
+  if(!g||g.id!==e.pointerId)return;
+  dragPointer=null;
+  stopFrame();
+  document.body.classList.remove('tinder-armed','tinder-tracking');
+  if(g.active){
+    try{if(stream.hasPointerCapture(e.pointerId))stream.releasePointerCapture(e.pointerId)}catch(_){}
+  }
   if(!g.active)return;
-  const fast=Math.abs(g.dx)/Math.max(1,performance.now()-g.start)>.48;
-  const passed=Math.abs(g.dx)>Math.min(105,innerWidth*.23)||(Math.abs(g.dx)>48&&fast);
-  if(passed)finish(g.article,g.dx>0?1:-1);else cancel();
+  const dx=g.x-g.startX,velocity=dx/Math.max(1,performance.now()-g.started);
+  const closeEnough=Math.abs(dx)>=gestureLimit();
+  const deliberateFlick=Math.abs(dx)>65&&Math.abs(velocity)>.55;
+  if(!cancelled&&(closeEnough||deliberateFlick)){
+    swipeDebug.accepted++;
+    // First settle the following card under the finger before flying out.
+    card.style.transition='none';
+    move(dx);
+    finish(g.article,dx>0?1:-1);
+  }else{
+    swipeDebug.cancelled++;
+    cancel();
+  }
 }
-stream.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1||shouldIgnore(e.target))return;
-  down(e.touches[0].clientX,e.touches[0].clientY,'touch');
-},{passive:true});
-stream.addEventListener('touchmove',e=>{
-  if(dragging?.kind==='touch'&&e.touches.length===1)drag(e.touches[0].clientX,e.touches[0].clientY,e);
-},{passive:false});
-stream.addEventListener('touchend',up,{passive:true});
-stream.addEventListener('touchcancel',()=>{dragging=null;if(!busy)resetStage()},{passive:true});
-stream.addEventListener('pointerdown',e=>{
-  if(e.pointerType!=='mouse'||e.button!==0||shouldIgnore(e.target))return;
-  down(e.clientX,e.clientY,'mouse');
+stream.addEventListener('pointerdown',armPointer,{passive:true});
+stream.addEventListener('pointermove',updatePointer,{passive:false});
+stream.addEventListener('pointerup',releasePointer,{passive:true});
+stream.addEventListener('pointercancel',e=>releasePointer(e,true),{passive:true});
+stream.addEventListener('lostpointercapture',e=>releasePointer(e,true),{passive:true});
+window.addEventListener('blur',()=>{
+  if(dragPointer){
+    const g=dragPointer;releasePointer({pointerId:g.id},true);
+  }
 });
-window.addEventListener('pointermove',e=>{if(dragging?.kind==='mouse')drag(e.clientX,e.clientY,e)});
-window.addEventListener('pointerup',e=>{if(dragging?.kind==='mouse')up()});
-window.addEventListener('blur',()=>{dragging=null;if(!busy)resetStage()});
+stream.addEventListener('dragstart',e=>{
+  if(e.target.closest?.('article.story'))e.preventDefault();
+});
+stream.addEventListener('contextmenu',e=>{
+  // On mobile, a long press would open "Copy", interrupting a horizontal swipe.
+  if(window.matchMedia('(pointer: coarse)').matches&&e.target.closest?.('article.story')&&!e.target.closest?.(actionTargets))
+    e.preventDefault();
+});
+// Clear the armed state if an unrelated pointer gesture was interrupted.
+document.addEventListener('pointerup',()=>{
+  if(!dragPointer)document.body.classList.remove('tinder-armed');
+},{passive:true});
 document.addEventListener('keydown',e=>{
   if(blocked()||e.altKey||e.ctrlKey||e.metaKey||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||''))return;
   if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();vote(e.key==='ArrowRight'?1:-1);}
 });
-window.ArchiveSwipe={version:'8.9',vote,resetStage,ready:true};
-console.info('АРХИВ 8.9: свайпы и лайки включены');
+window.ArchiveSwipe={version:'9.0',vote,resetStage,ready:true,debug:swipeDebug};
+console.info('АРХИВ 9.0: плавные сенсорные свайпы активны');
 })();
