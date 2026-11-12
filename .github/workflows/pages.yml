@@ -65,8 +65,8 @@ jobs:
           from pathlib import Path
           page = Path("public/index.html")
           html = page.read_text(encoding="utf-8")
-          css_tag = '<link rel="stylesheet" href="tinder-swipe.css?v=8.7.0">'
-          js_tag = '<script src="tinder-swipe.js?v=8.7.0"></script>'
+          css_tag = '<link rel="stylesheet" href="tinder-swipe.css?v=8.8.0">'
+          js_tag = '<script src="tinder-swipe.js?v=8.8.0"></script>'
           if '</head>' not in html or '</body>' not in html:
               raise SystemExit("Archive HTML is missing required end tags")
           html = html.replace('</head>', css_tag + '\n</head>', 1)
