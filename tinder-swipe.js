@@ -103,6 +103,8 @@ function recommendation(all,active){
 function save(article,v){
   const id=getId(article),ratings=getRatings();ratings[id]=v;
   const ok=saveRatings(ratings);
+  // Send verified Telegram users' reactions to the D1 backend when connected.
+  try{window.ArchiveCloud?.rate?.(Number(id),v)}catch(err){console.warn('Cloud rating deferred',err)}
   article.querySelectorAll('.actionrow button.action').forEach((b,i)=>{
     b.classList.toggle('selected',i===(v===1?0:1));
     b.setAttribute('aria-pressed',String(i===(v===1?0:1)));
