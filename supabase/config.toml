@@ -1,0 +1,4 @@
+# Supabase Edge Function settings.
+# Telegram initData is validated inside index.ts, so disable Supabase JWT check here.
+[functions.archive-user]
+verify_jwt = false
