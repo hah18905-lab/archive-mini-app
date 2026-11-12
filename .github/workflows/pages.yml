@@ -56,6 +56,24 @@ jobs:
           (target / ".nojekyll").touch()
           print("Mini App files extracted successfully")
           PY
+      - name: Add swipe voting, flames and gestures
+        shell: bash
+        run: |
+          cp tinder-swipe.css public/tinder-swipe.css
+          cp tinder-swipe.js public/tinder-swipe.js
+          python3 - <<'PY'
+          from pathlib import Path
+          page = Path("public/index.html")
+          html = page.read_text(encoding="utf-8")
+          css_tag = '<link rel="stylesheet" href="tinder-swipe.css?v=8.7.0">'
+          js_tag = '<script src="tinder-swipe.js?v=8.7.0"></script>'
+          if '</head>' not in html or '</body>' not in html:
+              raise SystemExit("Archive HTML is missing required end tags")
+          html = html.replace('</head>', css_tag + '\n</head>', 1)
+          html = html.replace('</body>', js_tag + '\n</body>', 1)
+          page.write_text(html, encoding="utf-8")
+          print("Tinder swipe feature enabled")
+          PY
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
