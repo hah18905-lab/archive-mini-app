@@ -42,7 +42,7 @@
     const {idx,item,element}=activeStory();
     if(!item || !element || busy || modalOpen())return false;
     window.clearTimeout(cleanupTimer);
-    stage.className='visible';stage.style.opacity='1';
+    stage.className='visible';
     nextScreen.replaceChildren();
     card.style.filter='';card.style.transition='none';card.style.opacity='1';card.style.transform='translateX(0px) rotate(0deg)';
     stampYes.style.opacity=stampNo.style.opacity='0';
@@ -62,7 +62,7 @@
     stampNo.style.opacity=String(Math.min(1,Math.max(0,-d/95)));
   }
   function hide(){
-    stage.className='';stage.style.opacity='1';stage.querySelectorAll('.tinder-ember').forEach(n=>n.remove());
+    stage.className='';stage.querySelectorAll('.tinder-ember').forEach(n=>n.remove());
     nextScreen.replaceChildren();
     card.style.transition='none';card.style.transform='';card.style.opacity='1';card.style.filter='';
     document.body.classList.remove('tinder-tracking');
