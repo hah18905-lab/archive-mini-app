@@ -1,0 +1,14 @@
+name = "archive-user"
+main = "worker.js"
+compatibility_date = "2026-11-12"
+
+# After executing: npx wrangler d1 create archive-users
+# replace the database_id below with the UUID printed by Wrangler.
+[[d1_databases]]
+binding = "DB"
+database_name = "archive-users"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# BOT_TOKEN must be uploaded as a secret using:
+# npx wrangler secret put BOT_TOKEN
+# Never paste Telegram bot token into this file!
