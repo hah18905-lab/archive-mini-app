@@ -24,8 +24,14 @@
   const burn=document.createElement('div');burn.className='tinder-burn';
   card.append(photo,details,stampYes,stampNo,burn);
   const hint=document.createElement('div');hint.className='tinder-hint';
+  const nextScreen=document.createElement('div');
+  nextScreen.className='tinder-next-screen';
+  nextScreen.setAttribute('aria-hidden','true');
+  stage.insertBefore(nextScreen,card);
   stage.append(card,hint);document.body.append(stage);
   let track=null, busy=false, cleanupTimer=0;
+  const viewed=new Set();
+  let viewedScope='';
   const modalOpen=()=>document.getElementById('menu')?.classList.contains('show');
   function activeStory(){
     // selectedIndex is maintained by the scrolling feed.
@@ -36,7 +42,9 @@
     const {idx,item,element}=activeStory();
     if(!item || !element || busy || modalOpen())return false;
     window.clearTimeout(cleanupTimer);
-    stage.className='visible';card.style.transition='none';card.style.opacity='1';card.style.transform='translateX(0px) rotate(0deg)';
+    stage.className='visible';stage.style.opacity='1';
+    nextScreen.replaceChildren();
+    card.style.filter='';card.style.transition='none';card.style.opacity='1';card.style.transform='translateX(0px) rotate(0deg)';
     stampYes.style.opacity=stampNo.style.opacity='0';
     stage.querySelectorAll('.tinder-ember').forEach(n=>n.remove());
     const currentVisual=element.querySelector('.mediaframe img, .mediaframe video');
@@ -54,8 +62,9 @@
     stampNo.style.opacity=String(Math.min(1,Math.max(0,-d/95)));
   }
   function hide(){
-    stage.className='';stage.querySelectorAll('.tinder-ember').forEach(n=>n.remove());
-    card.style.transition='none';card.style.transform='';card.style.opacity='1';
+    stage.className='';stage.style.opacity='1';stage.querySelectorAll('.tinder-ember').forEach(n=>n.remove());
+    nextScreen.replaceChildren();
+    card.style.transition='none';card.style.transform='';card.style.opacity='1';card.style.filter='';
     document.body.classList.remove('tinder-tracking');
   }
   function cancel(){
@@ -87,36 +96,112 @@
     }
     try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium')}catch(_){}
   }
+
+  // Use recent reactions and hashtags to select the next unseen story.
+  // Every fifth recommendation explores a new topic to avoid a filter bubble.
+  function recommendAfter(current){
+    const scope=String(currentSection)+'|'+String(currentTag);
+    if(scope!==viewedScope){viewedScope=scope;viewed.clear();}
+    viewed.add(current.id);
+    const ratings=readRatings();
+    const candidates=stories.filter(it=>it.id!==current.id&&!viewed.has(it.id));
+    if(!candidates.length)return null;
+    const preference=Object.create(null);
+    let votes=0;
+    for(const story of stories){
+      const v=Number(ratings[story.id]||0);
+      if(v!==1&&v!==-1)continue;
+      votes++;
+      for(const tag of story.tags||[]){
+        preference[tag]=(preference[tag]||0)+(v===1?4:-5);
+      }
+    }
+    // Until we know what the reader likes, follow the original feed.
+    if(!votes){
+      const idx=stories.findIndex(it=>it.id===current.id);
+      return candidates.find(it=>stories.indexOf(it)>idx)||candidates[0];
+    }
+    const ranked=candidates.map((it,i)=>{
+      const own=Number(ratings[it.id]||0);
+      const tags=(it.tags||[]);
+      const tagScore=tags.reduce((sum,tag)=>sum+(preference[tag]||0),0);
+      const untested=own===0?2:0;
+      const rejected=own===-1?-30:0;
+      const tinyTiebreak=(stories.length-i)/Math.max(1,stories.length)*.15;
+      return {it,score:tagScore+untested+rejected+tinyTiebreak};
+    }).sort((a,b)=>b.score-a.score);
+    if(ranked.length>3&&Math.random()<.2){
+      // Explore one of the other high-ranked, not-yet-viewed stories.
+      return ranked[1+Math.floor(Math.random()*Math.min(4,ranked.length-1))].it;
+    }
+    return ranked[0].it;
+  }
+  function prepareNext(next){
+    nextScreen.replaceChildren();
+    if(!next){
+      const ending=document.createElement('div');
+      ending.className='tinder-end-screen';
+      ending.innerHTML='<div class="tinder-end-symbol">✦</div><div class="tinder-end-kicker">АРХИВ · ВСЕ ДЕЛА ИЗУЧЕНЫ</div><h2>Пока это всё.</h2><p>Вернись в подборку «Для тебя», чтобы пересмотреть истории или изменить оценки.</p>';
+      nextScreen.append(ending);
+      return;
+    }
+    const source=document.getElementById('story-'+next.id);
+    if(!source)return;
+    // An exact copy of the next article makes the slide-in seamless.
+    const clone=source.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+    clone.querySelectorAll('video').forEach(video=>{
+      video.pause();
+      video.autoplay=false;
+      video.removeAttribute('autoplay');
+      video.controls=false;
+    });
+    clone.querySelectorAll('img').forEach(img=>img.loading='eager');
+    nextScreen.append(clone);
+    const banner=document.createElement('div');
+    banner.className='tinder-recommend-banner';
+    const tags=(next.tags||[]).slice(0,2).map(x=>'#'+x).join(' · ');
+    banner.textContent='✦ СЛЕДУЮЩЕЕ ДЕЛО · ПОДОБРАНО ДЛЯ ТЕБЯ'+(tags?' · '+tags:'');
+    nextScreen.append(banner);
+  }
+  function advance(next){
+    if(!next){
+      document.getElementById('menu')?.classList.add('show');
+      return;
+    }
+    const nextElement=document.getElementById('story-'+next.id);
+    if(!nextElement)return;
+    // The incoming article covers the screen; reposition invisibly,
+    // then remove the transition layer. Never smooth-scroll here.
+    appStream.scrollTop=nextElement.offsetTop;
+    if(typeof updateCurrent==='function')updateCurrent();
+  }
   function finish(value){
-    const {idx,item,element}=activeStory();
-    if(!item || busy) {hide();return;}
-    busy=true;rate(item,value,element);
-    stage.classList.add('flare',value===1?'like':'dislike');
-    hint.textContent=value===1?'♥ ИСТОРИЯ ПОНРАВИЛАСЬ':'✕ ИСТОРИЯ НЕ ИНТЕРЕСНА';
+    const {item,element}=activeStory();
+    if(!item||busy){hide();return;}
+    busy=true;
+    rate(item,value,element);
+    const next=recommendAfter(item);
+    prepareNext(next);
+    stage.classList.add('flare',value===1?'like':'dislike','transitioning');
+    hint.textContent=value===1?'♥ ВКУС УЧТЁН · НОВАЯ ИСТОРИЯ':'✕ НЕ МОЁ · ИЩЕМ ДРУГОЕ';
     stampYes.style.opacity=value===1?'1':'0';
     stampNo.style.opacity=value===-1?'1':'0';
     const direction=value===1?1:-1;
-    sparks(direction);
     if(matchMedia('(prefers-reduced-motion: reduce)').matches){
-      hide();advance(idx);busy=false;return;
+      advance(next);hide();busy=false;return;
     }
-    card.style.transition='transform .58s cubic-bezier(.26,.9,.4,1),opacity .56s ease-out,filter .56s';
-    card.style.transform='translate3d('+(direction*(window.innerWidth+400))+'px,-60px,0) rotate('+(direction*25)+'deg)';
-    card.style.opacity='0.12';
-    card.style.filter='brightness(.7) sepia(.9)';
-    cleanupTimer=window.setTimeout(()=>{hide();advance(idx);busy=false;card.style.filter='';},610);
-  }
-  function advance(previousIndex){
-    if(previousIndex<stories.length-1){
-      const next=document.getElementById('story-'+stories[previousIndex+1].id);
-      if(next){
-        appStream.scrollTo({top:next.offsetTop,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
-        window.setTimeout(()=>{if(typeof updateCurrent==='function')updateCurrent();},650);
-      }
-    }else{
-      document.getElementById('menu')?.classList.add('show');
-      hint.textContent='Последняя история оценена · выбери новую подборку';
-    }
+    sparks(direction);
+    card.style.transition='transform .64s cubic-bezier(.2,.8,.2,1),opacity .56s ease,filter .58s ease';
+    card.style.transform='translate3d('+(direction*(window.innerWidth+400))+'px,-65px,0) rotate('+(direction*27)+'deg)';
+    card.style.opacity='0';
+    card.style.filter='brightness(.7) sepia(.8)';
+    cleanupTimer=window.setTimeout(()=>{
+      advance(next);
+      stage.classList.add('dissolve');
+      cleanupTimer=window.setTimeout(()=>{hide();busy=false;},210);
+    },850);
   }
   function ignoreStart(t){
     return !!t.closest('button,a,input,textarea,select,video,.overlay') || modalOpen() || busy;
