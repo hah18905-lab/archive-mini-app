@@ -74,6 +74,23 @@ jobs:
           page.write_text(html, encoding="utf-8")
           print("Smooth swipe feature enabled")
           PY
+      - name: Add optional Cloudflare D1 user sync (no secrets in website)
+        shell: bash
+        run: |
+          cp archive-cloud-config.js public/archive-cloud-config.js
+          cp archive-cloud.js public/archive-cloud.js
+          cp archive-cloud.css public/archive-cloud.css
+          python3 - <<'PY'
+          from pathlib import Path
+          index=Path("public/index.html")
+          html=index.read_text(encoding="utf-8")
+          if "</head>" not in html or "</body>" not in html:
+              raise SystemExit("Archive HTML is malformed")
+          html=html.replace("</head>", '<link rel="stylesheet" href="archive-cloud.css?v=9.1.0">\n</head>', 1)
+          scripts='<script src="archive-cloud-config.js?v=9.1.0"></script>\n<script src="archive-cloud.js?v=9.1.0"></script>\n'
+          html=html.replace("</body>", scripts+"</body>", 1)
+          index.write_text(html, encoding="utf-8")
+          PY
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
