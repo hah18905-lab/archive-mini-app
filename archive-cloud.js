@@ -1,12 +1,12 @@
 (() => {
 'use strict';
-// Archive Cloud 9.1: cloud sync is opt-in until the Supabase endpoint is configured.
-// Telegram authentication is checked on the Edge Function, never trusted from JS.
+// Archive Cloud 9.1: uses Cloudflare Worker + D1. Disabled until a trusted public Worker URL is configured.
+// Telegram authentication is verified on the Worker, never trusted from JS.
 const config=window.ARCHIVE_CLOUD_CONFIG||{};
 const endpoint=String(config.functionUrl||'').trim();
 const tg=window.Telegram?.WebApp;
 const initData=tg?.initData||'';
-const readyToConnect=/^https:\/\/[a-z0-9-]+\.supabase\.co\/functions\/v1\/archive-user\/?$/.test(endpoint)
+const readyToConnect=/^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.workers\.dev\/?$/.test(endpoint)
   && initData.length>0;
 const ratingsKey='archive_pages_ratings_v1';
 const bookmarkKey='archive_pages_bookmarks_v1';
@@ -34,7 +34,7 @@ function status(value,kind){
   if(indicator)indicator.dataset.cloudState=kind||'local';
 }
 async function request(action,payload={}){
-  if(!readyToConnect)throw Error('Нет адреса Supabase или входа Telegram');
+  if(!readyToConnect)throw Error('Нет адреса Cloudflare Worker или входа Telegram');
   const timeout=new AbortController();
   const handle=setTimeout(()=>timeout.abort(),10000);
   try{
@@ -79,7 +79,7 @@ const observer=new MutationObserver(()=>{
   queueMicrotask(()=>{updateQueued=false;decorate()});
 });
 const stream=document.getElementById('stream');
-if(stream)observer.observe(stream,{childList:true,subtree:true});
+if(stream)observer.observe(stream,{childList:true,subtree:false});
 if(stream)stream.addEventListener('click',e=>{
   const button=e.target.closest?.('.archive-bookmark');
   if(!button)return;
@@ -150,12 +150,21 @@ function rate(storyId,value){
   enqueue('rate',Number(storyId),Number(value));
 }
 async function bootstrap(){
-  if(!readyToConnect){status(initData?'☁️ Supabase не настроен':'☁️ Локально · входи через Telegram','local');return;}
+  if(!readyToConnect){status(initData?'☁️ Облачная база не подключена':'☁️ Локально · входи через Telegram','local');return;}
   try{
     const localRatings=getJson(ratingsKey),localBookmarks=getJson(bookmarkKey);
     const remote=await request('bootstrap');
     accountId=remote.telegram_id;
-    const ratings={...localRatings},bookmarks={...localBookmarks},progress=getJson(progressKey);
+    const accountKey='archive_pages_cloud_account_v1';
+    const previousAccount=localStorage.getItem(accountKey);
+    const hasSwitched=previousAccount && previousAccount!==String(accountId);
+    if(hasSwitched){
+      for(const key of [ratingsKey,bookmarkKey,progressKey,pendingKey])localStorage.removeItem(key);
+    }
+    localStorage.setItem(accountKey,String(accountId));
+    const ratings=hasSwitched?{}:{...localRatings};
+    const bookmarks=hasSwitched?{}:{...localBookmarks};
+    const progress=getJson(progressKey);
     const known=new Set();
     for(const row of remote.states||[]){
       const id=Number(row.story_id);
@@ -169,12 +178,12 @@ async function bootstrap(){
     // Restore earlier local ratings and bookmarks only when no cloud record exists.
     queue=Array.isArray(getJson(pendingKey))?getJson(pendingKey):[];
     if(!Array.isArray(queue))queue=[];
-    for(const [idString,value] of Object.entries(localRatings)){
+    for(const [idString,value] of Object.entries(hasSwitched?{}:localRatings)){
       const id=Number(idString);
       if(validStory(id)&&!known.has(id)&&[-1,1].includes(Number(value)) &&
          !queue.some(q=>q.storyId===id&&q.action==='rate'))queue.push({action:'rate',storyId:id,value:Number(value)});
     }
-    for(const [idString,bookmarked] of Object.entries(localBookmarks)){
+    for(const [idString,bookmarked] of Object.entries(hasSwitched?{}:localBookmarks)){
       const id=Number(idString);
       if(validStory(id)&&!known.has(id)&&bookmarked &&
          !queue.some(q=>q.storyId===id&&q.action==='bookmark'))queue.push({action:'bookmark',storyId:id,value:1});
@@ -187,7 +196,7 @@ async function bootstrap(){
       load('recommended',typeof currentTag==='string'?currentTag:'');
     flush();
   }catch(err){
-    online=false;status('☁️ Локально · ошибка облака','offline');
+    online=false;status('☁️ Локально · ошибка синхронизации','offline');
     console.warn('АРХИВ: ошибка облачной авторизации',err?.message||err);
   }
 }
