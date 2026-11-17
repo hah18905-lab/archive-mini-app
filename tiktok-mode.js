@@ -167,7 +167,8 @@ function switchTo(nextIndex,direction=0){
   overlay.classList.add('enter');
   if(old){
    old.style.transition='transform .58s cubic-bezier(.18,.8,.2,1),opacity .5s ease,filter .5s ease';
-   old.style.transform='translate3d(0,-45px,0) scale(.978)';
+   old.style.transform=direction===0?'translate3d(0,-45px,0) scale(.978)':
+     'translate3d('+(direction*Math.min(180,innerWidth*.42))+'px,-24px,0) rotate('+(direction*8)+'deg) scale(.955)';
    old.style.opacity='.28';old.style.filter='blur(2px) brightness(.65)';
   }
  });
