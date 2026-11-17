@@ -120,12 +120,18 @@ async function flush(){
 }
 function noteProgress(){
   if(!stream||!getStories().length)return;
-  let active=getStories()[0],position=stream.scrollTop+Math.max(80,Math.min(400,innerHeight*.4));
-  for(const story of getStories()){
-    if(story.offsetTop<=position)active=story;else break;
+  // In TikTok mode only one story is visible; hidden articles all have offsetTop=0.
+  // Use the explicitly active article rather than choosing the last hidden one.
+  const single=stream.querySelector('article.story.deck-active');
+  let active=single||getStories()[0];
+  if(!single){
+    const position=stream.scrollTop+Math.max(80,Math.min(400,innerHeight*.4));
+    for(const story of getStories()){
+      if(story.offsetTop<=position)active=story;else break;
+    }
   }
   const id=storyId(active);if(!validStory(id))return;
-  const relative=stream.scrollTop-active.offsetTop;
+  const relative=single?stream.scrollTop:stream.scrollTop-active.offsetTop;
   const visible=Math.max(1,active.offsetHeight-stream.clientHeight);
   const pct=Math.max(0,Math.min(100,Math.round(relative/visible*100)));
   const progress=getJson(progressKey);
