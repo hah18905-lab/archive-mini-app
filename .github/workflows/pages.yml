@@ -56,23 +56,25 @@ jobs:
           (target / ".nojekyll").touch()
           print("Mini App files extracted successfully")
           PY
-      - name: Add swipe voting, flames and gestures
+      - name: Install full-screen one-story TikTok mode
         shell: bash
         run: |
-          cp tinder-swipe.css public/tinder-swipe.css
-          cp tinder-swipe.js public/tinder-swipe.js
+          cp tiktok-mode.css public/tiktok-mode.css
+          cp tiktok-mode.js public/tiktok-mode.js
           python3 - <<'PY'
           from pathlib import Path
           page = Path("public/index.html")
           html = page.read_text(encoding="utf-8")
-          css_tag = '<link rel="stylesheet" href="tinder-swipe.css?v=9.0.0">'
-          js_tag = '<script src="tinder-swipe.js?v=9.0.0"></script>'
-          if '</head>' not in html or '</body>' not in html:
-              raise SystemExit("Archive HTML is missing required end tags")
-          html = html.replace('</head>', css_tag + '\n</head>', 1)
-          html = html.replace('</body>', js_tag + '\n</body>', 1)
+          if "</head>" not in html or "</body>" not in html:
+              raise SystemExit("Archive index.html has missing HTML tags")
+          html = html.replace("</head>", '<link rel="stylesheet" href="tiktok-mode.css?v=9.2.0">\n</head>', 1)
+          html = html.replace("</body>", '<script src="tiktok-mode.js?v=9.2.0"></script>\n</body>', 1)
+          html = html.replace("ЛЕНТА УЖАСОВ · БЕЗ КНОПОК", "ОДНА ИСТОРИЯ ЗА РАЗ")
+          html = html.replace("Читай всю историю, просто проводя пальцем вверх. После заключения следующая история появится автоматически, без нажатия кнопки.",
+            "На экране одна история. Читай текст внутри неё, свайпни вверх в конце или нажми «Далее». Лайк и дизлайк откроют следующее дело с анимацией.")
+          html = html.replace("Ниже — полная запись. Продолжай листать вниз, чтобы перейти к следующей истории.",
+            "Полная запись. Прокручивай текст, а в конце свайпни вверх для следующего дела.")
           page.write_text(html, encoding="utf-8")
-          print("Smooth swipe feature enabled")
           PY
       - name: Add optional Cloudflare D1 user sync (no secrets in website)
         shell: bash
