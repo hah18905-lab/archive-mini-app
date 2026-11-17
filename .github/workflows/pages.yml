@@ -93,6 +93,17 @@ jobs:
           html=html.replace("</body>", scripts+"</body>", 1)
           index.write_text(html, encoding="utf-8")
           PY
+      - name: Set up Node for Mini App checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test one-story mode (like / dislike / next)
+        shell: bash
+        run: |
+          node --check public/tiktok-mode.js
+          node --check public/archive-cloud.js
+          npm install --no-save --no-package-lock jsdom@26.1.0
+          node .github/tests/deck-smoke.cjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
