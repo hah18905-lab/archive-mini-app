@@ -55,7 +55,7 @@ html.archive-deck #deckControls.hidden{display:none}
 html.archive-deck #deckTransition{
   position:fixed;z-index:30;inset:0;display:none;
   pointer-events:none;overflow:hidden;
-  background:#08110f;isolation:isolate;
+  background:transparent;isolation:isolate;
 }
 html.archive-deck #deckTransition.visible{display:block}
 #deckTransition .deck-incoming{
