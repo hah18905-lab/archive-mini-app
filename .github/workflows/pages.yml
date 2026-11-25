@@ -56,12 +56,6 @@ jobs:
           (target / ".nojekyll").touch()
           print("Mini App files extracted successfully")
           PY
-      - name: Render three animated story scenes for every story
-        shell: bash
-        run: |
-          python3 -m pip install --quiet "Pillow>=10,<13"
-          python3 scripts/build_scene_gifs.py public
-          test -f public/data/scene-manifest.json
       - name: Install full-screen one-story TikTok mode
         shell: bash
         run: |
